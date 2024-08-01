@@ -19,12 +19,10 @@ def adds_three_zeros(specified_amount):
            float or None: Скорректированная зарплата, округлённая до ближайшей тысячи рублей,
                           или None, если specified_amount равно None.
        """
+
     if specified_amount is None:
-        return None  # Возвращаем None, если на входе None
-    elif specified_amount < 100:
-        return specified_amount * 1000
-    else:
-        return specified_amount
+        return None
+    return specified_amount * 1000 if specified_amount < 100 else specified_amount
 
 
 def gets_average_value(salary_from, salary_to):
