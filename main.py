@@ -20,9 +20,10 @@ def adds_three_zeros(specified_amount):
                           или None, если specified_amount равно None.
        """
 
-    if specified_amount is None:
-        return None
-    return specified_amount * 1000 if specified_amount < 100 else specified_amount
+    if specified_amount and specified_amount < 100:
+        return specified_amount * 1000
+    else:
+        return specified_amount
 
 
 def gets_average_value(salary_from, salary_to):
@@ -57,38 +58,39 @@ def predict_rub_salary_sj(vacancy):
     return gets_average_value(salary_from, salary_to)
 
 
-def get_vacancy_hh(language):
+def get_vacancies_hh(language):
     hh_url = 'https://api.hh.ru/vacancies'
 
     hh_params = {
         'area': 1,  # Код Москвы
         'period': 30,  # Последний месяц
-        'only_with_salary': True,  # Только вакансии с указанной зарплатой
+        'only_with_salary': False,  # Только вакансии с указанной зарплатой
         'per_page': 100,  # Количество вакансий на странице
         'page': 0,  # Номер страницы
         'text': f'программист {language}'
     }
 
     vacancies = []
-
+    vacancies_found = 0
     while True:
         response = requests.get(hh_url, params=hh_params)
         try:
             response.raise_for_status()
         except requests.exceptions.HTTPError as err:
-            print(f'Не удалось сделать на hh запрос для языка {language}\n {err}')
-
+            # print(f'Не удалось сделать на hh запрос для языка {language}\n {err}')
             break
+
         vacancy_items = response.json()
         vacancies.extend(vacancy_items['items'])
+        vacancies_found = vacancy_items['found']  # количество найденных вакансий
         if not vacancy_items['items']:
             break
         hh_params['page'] += 1
 
-    return vacancies
+    return vacancies, vacancies_found
 
 
-def get_vacancy_sj(sj_secret_key, language, page_number):
+def get_vacancies_sj(sj_secret_key, language, page_number):
     sj_url = 'https://api.superjob.ru/2.0/vacancies/'
     sj_params = {
         'town': 4,  # Москва
@@ -114,21 +116,23 @@ def get_vacancy_sj(sj_secret_key, language, page_number):
 def get_vacancy_statistics_sj(sj_secret_key, language):
     salaries = []
     vacancies_found = None
+
     for page_number in count():
         try:
-            jobs = get_vacancy_sj(sj_secret_key, language, page_number)
-            vacancies = jobs.get('objects')
-
-            for vacancy in vacancies:
-                salary = predict_rub_salary_sj(vacancy)
-                if salary:
-                    salaries.append(salary)
-
-            if not jobs.get('more'):
-                vacancies_found = jobs.get('total')  # or get('total', 0) ?
-                break
+            jobs = get_vacancies_sj(sj_secret_key, language, page_number)
         except requests.exceptions.HTTPError as err:
             print(f'Не удалось сделать на sj запрос для языка {language}\n {err}')
+            break
+
+        vacancies = jobs.get('objects')
+        for vacancy in vacancies:
+            salary = predict_rub_salary_sj(vacancy)
+            if salary:
+                salaries.append(salary)
+
+        if not jobs.get('more'):
+            vacancies_found = jobs.get('total')  # or get('total', 0) ?
+            # print(f"jobs.get('total', 0): {jobs.get('total', 0)}")
             break
 
     vacancies_processed = len(salaries)
@@ -142,24 +146,20 @@ def get_vacancy_statistics_sj(sj_secret_key, language):
     return vacancies_sj
 
 
-def get_statistic_hh(vacancies):
-    if vacancies:
-        salaries = []
-        for vacancy in vacancies:
-            salary = predict_rub_salary_hh(vacancy)
-            if salary is not None:
-                salaries.append(salary)
-        vacancies_found = len(vacancies)
-        vacancies_processed = len(salaries)
-        average_salary = int(sum(salaries) / vacancies_processed) if vacancies_processed else 0
-        statistics = {
-            'Вакансий найдено': vacancies_found,
-            'Вакансий обработано': vacancies_processed,
-            'Средняя зарплата': average_salary
-        }
-        return statistics
-    else:
-        return None
+def get_statistic_hh(vacancies, vacancies_found):
+    salaries = []
+    for vacancy in vacancies:
+        salary = predict_rub_salary_hh(vacancy)
+        if salary is not None:
+            salaries.append(salary)
+    vacancies_processed = len(salaries)
+    average_salary = int(sum(salaries) / vacancies_processed) if vacancies_processed else 0
+    statistics = {
+        'Вакансий найдено': vacancies_found,
+        'Вакансий обработано': vacancies_processed,
+        'Средняя зарплата': average_salary
+    }
+    return statistics
 
 
 def create_vacancy_table(statistics):
@@ -186,13 +186,16 @@ def main():
     sj_secret_key = os.getenv('SJ_SECRET_KEY')
 
     for language in languages:
-        statistics_hh = get_statistic_hh(get_vacancy_hh(language))
+        vacancies_hh, vacancies_found_hh = get_vacancies_hh(language)
+        statistics_hh = get_statistic_hh(vacancies_hh, vacancies_found_hh)
         if statistics_hh:
             all_vacancies_hh[language] = statistics_hh
+        # if vacancies_hh:
+        #     statistics_hh = get_statistic_hh(vacancies_hh)
+        #     all_vacancies_hh[language] = statistics_hh
 
         statistics_sj = get_vacancy_statistics_sj(sj_secret_key, language)
-        if statistics_sj:
-            all_vacancies_sj[language] = statistics_sj
+        all_vacancies_sj[language] = statistics_sj
 
     table_hh = create_vacancy_table(all_vacancies_hh)
     table_sj = create_vacancy_table(all_vacancies_sj)
