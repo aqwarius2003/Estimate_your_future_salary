@@ -77,7 +77,7 @@ def get_vacancies_hh(language):
         try:
             response.raise_for_status()
         except requests.exceptions.HTTPError as err:
-            # print(f'Не удалось сделать на hh запрос для языка {language}\n {err}')
+            print(f'Не удалось сделать на hh запрос для языка {language}\n {err}')
             break
 
         vacancy_items = response.json()
@@ -131,8 +131,7 @@ def get_vacancy_statistics_sj(sj_secret_key, language):
                 salaries.append(salary)
 
         if not jobs.get('more'):
-            vacancies_found = jobs.get('total')  # or get('total', 0) ?
-            # print(f"jobs.get('total', 0): {jobs.get('total', 0)}")
+            vacancies_found = jobs.get('total')
             break
 
     vacancies_processed = len(salaries)
@@ -190,9 +189,6 @@ def main():
         statistics_hh = get_statistic_hh(vacancies_hh, vacancies_found_hh)
         if statistics_hh:
             all_vacancies_hh[language] = statistics_hh
-        # if vacancies_hh:
-        #     statistics_hh = get_statistic_hh(vacancies_hh)
-        #     all_vacancies_hh[language] = statistics_hh
 
         statistics_sj = get_vacancy_statistics_sj(sj_secret_key, language)
         all_vacancies_sj[language] = statistics_sj
