@@ -136,7 +136,7 @@ def get_vacancy_statistics_sj(sj_secret_key, language):
             break
 
     vacancies_processed = len(salaries)
-    average_salary = int(sum(salaries) / vacancies_processed) if vacancies_processed > 0 else 0
+    average_salary = int(sum(salaries) / vacancies_processed) if vacancies_processed else 0
 
     vacancies_sj = {
         'Вакансий найдено': vacancies_found,
