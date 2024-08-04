@@ -150,7 +150,7 @@ def get_statistic_hh(vacancies, vacancies_found):
     salaries = []
     for vacancy in vacancies:
         salary = predict_rub_salary_hh(vacancy)
-        if salary is not None:
+        if salary:
             salaries.append(salary)
     vacancies_processed = len(salaries)
     average_salary = int(sum(salaries) / vacancies_processed) if vacancies_processed else 0
